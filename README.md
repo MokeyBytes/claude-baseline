@@ -29,7 +29,7 @@ Blocks dangerous shell commands before they execute.
 |----------|-----------------|
 | Filesystem | `rm -rf`, `mkfs.`, `dd if=`, `> /dev/sda`, fork bombs |
 | Database | `DROP TABLE`, `DROP DATABASE` |
-| Git | `push --force`, `push -f`, `reset --hard`, `clean -fd`, `clean -fx`, `checkout -- .` |
+| Git | `push` (all variants), `reset --hard`, `clean -fd`, `clean -fx`, `checkout -- .` |
 | Permissions | `chmod -R 777 /`, `chmod 777 /` |
 | Remote exec | `curl \| bash`, `curl \| sh`, `wget \| bash`, `wget \| sh` |
 | Publishing | `npm publish`, `yarn publish`, `cargo publish`, `twine upload`, `gem push` |
