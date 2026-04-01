@@ -32,7 +32,7 @@ Blocks dangerous shell commands before they execute.
 | Remote exec | `curl \| bash`, `curl \| sh`, `wget \| bash`, `wget \| sh` |
 | Publishing | `npm publish`, `yarn publish`, `cargo publish`, `twine upload`, `gem push` |
 
-### `guard-files.sh` (PreToolUse → Write, Edit, MultiEdit, NotebookEdit)
+### `guard-files.sh` (PreToolUse → Write, Edit, NotebookEdit)
 
 Prevents Claude from writing to files that should never be directly edited.
 
@@ -43,7 +43,7 @@ Prevents Claude from writing to files that should never be directly edited.
 - **Git internals** — anything inside `.git/`
 - **Out-of-project writes** — any path outside `$CLAUDE_PROJECT_DIR`
 
-### `format.sh` (PostToolUse → Write, Edit, MultiEdit, NotebookEdit)
+### `format.sh` (PostToolUse → Write, Edit, NotebookEdit)
 
 Auto-formats files after every write using whatever formatter is available on your system.
 
