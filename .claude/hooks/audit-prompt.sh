@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# UserPromptSubmit hook — logs prompts and blocks dangerous input patterns.
+# UserPromptSubmit hook — logs prompts and warns on dangerous input patterns.
 set -euo pipefail
 
-if ! command -v jq &>/dev/null; then
-  exit 0
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/json-helper.sh"
 
 INPUT=$(cat)
-PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
+PROMPT=$(json_get "$INPUT" '.prompt')
 SESSION_ID="${CLAUDE_SESSION_ID:-unknown}"
 
 if [[ -z "$PROMPT" ]]; then
@@ -15,7 +14,6 @@ if [[ -z "$PROMPT" ]]; then
 fi
 
 # Ensure log directory exists
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/../logs"
 mkdir -p "$LOG_DIR"
 
@@ -38,7 +36,7 @@ SAFE_PROMPT=$(echo "$PROMPT" | sed -E \
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 echo "[$TIMESTAMP] session=$SESSION_ID prompt=$(echo "$SAFE_PROMPT" | head -c 500)" >> "$LOG_DIR/prompts.log"
 
-# Block dangerous patterns in prompts
+# Warn on dangerous patterns in prompts
 BLOCKED_PATTERNS=(
   'rm -rf'
   'DROP TABLE'

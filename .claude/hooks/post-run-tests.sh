@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# Stop hook — runs test suite before session ends.
+# Stop hook — runs type-checking and test suite when Claude finishes.
 set -uo pipefail
 
-if ! command -v jq &>/dev/null; then
-  exit 0
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/json-helper.sh"
 
 INPUT=$(cat)
 
 # Prevent infinite loop: if stop_hook_active is true, another stop hook triggered this
-STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
+STOP_HOOK_ACTIVE=$(json_get "$INPUT" '.stop_hook_active')
 if [[ "$STOP_HOOK_ACTIVE" == "true" ]]; then
   exit 0
 fi
@@ -50,7 +49,14 @@ fi
 
 # Detect and run the appropriate test runner
 if [[ -f "$PROJECT_DIR/package.json" ]]; then
-  HAS_TEST=$(jq -r '.scripts.test // empty' "$PROJECT_DIR/package.json" 2>/dev/null)
+  HAS_TEST=$(python3 -c "
+import json, sys
+try:
+    pkg = json.load(open('$PROJECT_DIR/package.json'))
+    print(pkg.get('scripts', {}).get('test', ''))
+except Exception:
+    print('')
+" 2>/dev/null)
   if [[ -n "$HAS_TEST" && "$HAS_TEST" != "echo \"Error: no test specified\" && exit 1" ]]; then
     cd "$PROJECT_DIR"
     if ! run_with_timeout npm test 2>&1; then
