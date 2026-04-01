@@ -130,8 +130,15 @@ Session initialized
 ### Required
 
 - **bash** (4.0+) — all hooks are bash scripts
-- **jq** — parses JSON input from Claude Code. If `jq` is not installed, all hooks exit gracefully (no-op)
+- **jq** — parses JSON input from Claude Code. **Not included with macOS** — you must install it. If missing, `session-init.sh` will print a warning and all other hooks will silently no-op (no protection)
 - **git** — used by `session-init.sh` and `post-run-tests.sh` to detect project root and changed files
+
+```bash
+# Install jq
+brew install jq        # macOS
+sudo apt install jq    # Debian/Ubuntu
+sudo dnf install jq    # Fedora/RHEL
+```
 
 ### Optional (formatting)
 
