@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse hook for Bash — blocks destructive commands.
+# PreToolUse hook for Bash — blocks destructive commands and user-intent commands.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,6 +12,30 @@ if [[ -z "$COMMAND" ]]; then
   exit 0
 fi
 
+COMMAND_LOWER=$(echo "$COMMAND" | tr '[:upper:]' '[:lower:]')
+
+# --- Commands that require explicit user intent ---
+# These are not destructive but should never be run autonomously.
+# The user gets a clear message telling them how to run it themselves.
+USER_INTENT_PATTERNS=(
+  'git push'
+  'npm publish'
+  'yarn publish'
+  'cargo publish'
+  'twine upload'
+  'gem push'
+)
+
+for pattern in "${USER_INTENT_PATTERNS[@]}"; do
+  PATTERN_LOWER=$(echo "$pattern" | tr '[:upper:]' '[:lower:]')
+  if [[ "$COMMAND_LOWER" == *"$PATTERN_LOWER"* ]]; then
+    echo "BLOCKED: '$pattern' requires explicit user intent." >&2
+    echo "Run it yourself with:  ! $COMMAND" >&2
+    exit 2
+  fi
+done
+
+# --- Destructive commands — always blocked ---
 BLOCKED_PATTERNS=(
   # Filesystem destruction
   'rm -rf'
@@ -23,8 +47,6 @@ BLOCKED_PATTERNS=(
   # Database destruction
   'DROP TABLE'
   'DROP DATABASE'
-  # Git — push requires explicit user intent
-  'git push'
   # Git destructive operations
   'git reset --hard'
   'git clean -fd'
@@ -38,15 +60,7 @@ BLOCKED_PATTERNS=(
   'curl.*| sh'
   'wget.*| bash'
   'wget.*| sh'
-  # Publishing (requires explicit intent)
-  'npm publish'
-  'yarn publish'
-  'cargo publish'
-  'twine upload'
-  'gem push'
 )
-
-COMMAND_LOWER=$(echo "$COMMAND" | tr '[:upper:]' '[:lower:]')
 
 for pattern in "${BLOCKED_PATTERNS[@]}"; do
   PATTERN_LOWER=$(echo "$pattern" | tr '[:upper:]' '[:lower:]')
