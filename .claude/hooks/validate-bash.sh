@@ -23,9 +23,9 @@ BLOCKED_PATTERNS=(
   # Database destruction
   'DROP TABLE'
   'DROP DATABASE'
+  # Git — push requires explicit user intent
+  'git push'
   # Git destructive operations
-  'git push --force'
-  'git push -f'
   'git reset --hard'
   'git clean -fd'
   'git clean -fx'
