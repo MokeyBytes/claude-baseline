@@ -19,9 +19,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/../logs"
 mkdir -p "$LOG_DIR"
 
-# Log the prompt
+# Redact potential secrets before logging
+# Matches common API key/token formats and replaces with [REDACTED]
+SAFE_PROMPT=$(echo "$PROMPT" | sed -E \
+  -e 's/(sk-[a-zA-Z0-9]{20,})/[REDACTED]/g' \
+  -e 's/(key-[a-zA-Z0-9]{20,})/[REDACTED]/g' \
+  -e 's/(ghp_[a-zA-Z0-9]{36,})/[REDACTED]/g' \
+  -e 's/(gho_[a-zA-Z0-9]{36,})/[REDACTED]/g' \
+  -e 's/(github_pat_[a-zA-Z0-9_]{20,})/[REDACTED]/g' \
+  -e 's/(xox[bposatr]-[a-zA-Z0-9\-]{10,})/[REDACTED]/g' \
+  -e 's/(AKIA[A-Z0-9]{16})/[REDACTED]/g' \
+  -e 's/(eyJ[a-zA-Z0-9_\-]{20,}\.[a-zA-Z0-9_\-]{20,})/[REDACTED]/g' \
+  -e 's/([a-zA-Z0-9_]*([Ss]ecret|[Tt]oken|[Kk]ey|[Pp]assword|[Cc]redential|API_KEY|api_key)[a-zA-Z0-9_]*[=: ]+['\''"]?)([^ '\''",}{]{8,})/\1[REDACTED]/g' \
+  -e 's/(-----BEGIN [A-Z ]+ KEY-----)/[REDACTED PEM KEY]/g' \
+)
+
+# Log the redacted prompt
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-echo "[$TIMESTAMP] session=$SESSION_ID prompt=$(echo "$PROMPT" | head -c 500)" >> "$LOG_DIR/prompts.log"
+echo "[$TIMESTAMP] session=$SESSION_ID prompt=$(echo "$SAFE_PROMPT" | head -c 500)" >> "$LOG_DIR/prompts.log"
 
 # Block dangerous patterns in prompts
 BLOCKED_PATTERNS=(

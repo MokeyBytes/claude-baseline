@@ -68,7 +68,17 @@ Also exports `PROJECT_ROOT`, `GIT_BRANCH`, and `NODE_ENV` into `$CLAUDE_ENV_FILE
 
 ### `audit-prompt.sh` (UserPromptSubmit)
 
-Logs every prompt with a UTC timestamp and session ID to `.claude/logs/prompts.log` (gitignored). Warns (but does not block) if a prompt contains patterns like `rm -rf` or `DROP TABLE` — these are natural language, not commands, so blocking would be too aggressive.
+Logs every prompt with a UTC timestamp and session ID to `.claude/logs/prompts.log` (gitignored). Before logging, prompts are scrubbed through a redaction filter that replaces known secret patterns with `[REDACTED]`:
+
+- **OpenAI / Anthropic** — `sk-*` prefixed keys
+- **GitHub** — `ghp_*`, `gho_*`, `github_pat_*` tokens
+- **Slack** — `xox[bposatr]-*` tokens
+- **AWS** — `AKIA*` access key IDs
+- **JWTs** — `eyJ*` encoded tokens
+- **PEM keys** — `-----BEGIN * KEY-----`
+- **Generic** — any value assigned to a variable containing `secret`, `token`, `key`, `password`, `credential`, or `api_key`
+
+Warns (but does not block) if a prompt contains patterns like `rm -rf` or `DROP TABLE` — these are natural language, not commands, so blocking would be too aggressive.
 
 ### `post-run-tests.sh` (Stop)
 
