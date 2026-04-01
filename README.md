@@ -9,12 +9,14 @@ A drop-in set of [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-c
 ├── settings.json            # Hook configuration (matchers, timeouts)
 └── hooks/
     ├── json-helper.sh       # Shared JSON parser (python3, jq fallback)
-    ├── validate-bash.sh     # PreToolUse  — blocks destructive shell commands
-    ├── guard-files.sh       # PreToolUse  — blocks writes to protected files
-    ├── format.sh            # PostToolUse — auto-formats files after every write
-    ├── session-init.sh      # SessionStart — logs project context and detects tooling
+    ├── validate-bash.sh     # PreToolUse      — blocks destructive shell commands
+    ├── guard-files.sh       # PreToolUse      — blocks writes to protected files
+    ├── format.sh            # PostToolUse     — auto-formats files after every write
+    ├── session-init.sh      # SessionStart    — logs project context and detects tooling
     ├── audit-prompt.sh      # UserPromptSubmit — logs prompts with timestamps
-    └── post-run-tests.sh    # Stop — runs type-checking and tests when Claude finishes
+    ├── notify.sh            # Notification    — desktop alerts when Claude needs input
+    ├── audit-config.sh      # ConfigChange    — logs settings/skills file changes
+    └── post-run-tests.sh    # Stop            — runs type-checking and tests when Claude finishes
 ```
 
 ## Hooks
@@ -81,6 +83,26 @@ Logs every prompt with a UTC timestamp and session ID to `.claude/logs/prompts.l
 
 Warns (but does not block) if a prompt contains patterns like `rm -rf` or `DROP TABLE` — these are natural language, not commands, so blocking would be too aggressive.
 
+### `notify.sh` (Notification)
+
+Sends a native desktop notification when Claude needs your input — permission prompts, idle state, or auth dialogs. Auto-detects the platform:
+
+- **macOS** — uses `osascript` (routes through Script Editor; you may need to enable notifications for Script Editor in System Settings > Notifications)
+- **Linux** — uses `notify-send` (requires `libnotify`: `sudo apt install libnotify-bin`)
+- **Windows** — not supported (WSL users can add PowerShell notification in the script)
+
+This lets you switch to other tasks while Claude works and get alerted when it's waiting.
+
+### `audit-config.sh` (ConfigChange)
+
+Logs every settings or skills file change to `.claude/logs/config-changes.log` (gitignored) with timestamp, session ID, source type, and file path. Fires when any configuration file is modified during a session:
+
+- `user_settings` — `~/.claude/settings.json`
+- `project_settings` — `.claude/settings.json`
+- `local_settings` — `.claude/settings.local.json`
+- `policy_settings` — managed policy settings
+- `skills` — skill files in `.claude/skills/`
+
 ### `post-run-tests.sh` (Stop)
 
 Runs when Claude finishes a response. Skips entirely if no files were modified (checked via `git diff` and `git ls-files`).
@@ -93,6 +115,8 @@ When files have changed:
    - Go → `go test ./...`
 
 All commands run with a **120-second timeout** (uses `timeout` on Linux, `gtimeout` on macOS) to prevent hanging test suites from blocking the session. The hook timeout in `settings.json` is set to 150 seconds to accommodate.
+
+**Infinite loop protection:** When a Stop hook exits with code 2 (test failure), Claude continues working to fix the issue and then stops again — which fires the Stop hook again. To prevent infinite loops, the hook checks the `stop_hook_active` field from the JSON input and exits immediately if it's `true`. This is a required pattern for any Stop hook that can block.
 
 ## Installation
 
@@ -189,9 +213,12 @@ Remove or comment out the corresponding entry in `.claude/settings.json`. The ho
 │   ├── format.sh
 │   ├── session-init.sh
 │   ├── audit-prompt.sh
+│   ├── notify.sh
+│   ├── audit-config.sh
 │   └── post-run-tests.sh
 └── logs/               # Created at runtime, gitignored
-    └── prompts.log     # Prompt audit log
+    ├── prompts.log     # Prompt audit log
+    └── config-changes.log  # Config change audit log
 ```
 
 ## License

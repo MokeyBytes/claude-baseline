@@ -58,6 +58,30 @@
         ]
       }
     ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/notify.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/audit-config.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",
