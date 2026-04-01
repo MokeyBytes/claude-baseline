@@ -55,7 +55,7 @@ Auto-formats files after every write using whatever formatter is available on yo
 | py | Black | — |
 | go | gofmt | — |
 
-All formatters are optional — if a tool isn't installed, the hook silently skips it.
+All formatters are optional — if a tool isn't installed, the hook shows a non-interruptive hint to the user (e.g. `Auto-format skipped — missing: prettier (npm i -g prettier)`) via `systemMessage`. This is displayed in the UI but not fed to Claude, so it won't interrupt the workflow or trigger Claude to install anything.
 
 ### `session-init.sh` (SessionStart)
 
