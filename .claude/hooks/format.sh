@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Write|Edit|MultiEdit — auto-formats written files.
+# PostToolUse hook for Write|Edit|MultiEdit|NotebookEdit — auto-formats written files.
 set -uo pipefail
 
-if ! command -v jq &>/dev/null; then
-  exit 0
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/json-helper.sh"
 
 INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+FILE_PATH=$(json_get "$INPUT" '.tool_input.file_path')
 
 if [[ -z "$FILE_PATH" || ! -f "$FILE_PATH" ]]; then
   exit 0

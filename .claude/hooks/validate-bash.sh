@@ -2,12 +2,11 @@
 # PreToolUse hook for Bash — blocks destructive commands.
 set -euo pipefail
 
-if ! command -v jq &>/dev/null; then
-  exit 0
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/json-helper.sh"
 
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+COMMAND=$(json_get "$INPUT" '.tool_input.command')
 
 if [[ -z "$COMMAND" ]]; then
   exit 0

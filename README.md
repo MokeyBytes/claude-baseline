@@ -8,6 +8,7 @@ A drop-in set of [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-c
 .claude/
 ├── settings.json            # Hook configuration (matchers, timeouts)
 └── hooks/
+    ├── json-helper.sh       # Shared JSON parser (python3, jq fallback)
     ├── validate-bash.sh     # PreToolUse  — blocks destructive shell commands
     ├── guard-files.sh       # PreToolUse  — blocks writes to protected files
     ├── format.sh            # PostToolUse — auto-formats files after every write
@@ -130,15 +131,8 @@ Session initialized
 ### Required
 
 - **bash** (4.0+) — all hooks are bash scripts
-- **jq** — parses JSON input from Claude Code. **Not included with macOS** — you must install it. If missing, `session-init.sh` will print a warning and all other hooks will silently no-op (no protection)
+- **python3** — parses JSON input from Claude Code via the built-in `json` module. Ships with macOS (since Catalina) and virtually all Linux distros. Falls back to `jq` if python3 is unavailable. If neither is found, `session-init.sh` prints a warning
 - **git** — used by `session-init.sh` and `post-run-tests.sh` to detect project root and changed files
-
-```bash
-# Install jq
-brew install jq        # macOS
-sudo apt install jq    # Debian/Ubuntu
-sudo dnf install jq    # Fedora/RHEL
-```
 
 ### Optional (formatting)
 
@@ -189,6 +183,7 @@ Remove or comment out the corresponding entry in `.claude/settings.json`. The ho
 .claude/
 ├── settings.json       # Hook wiring — which scripts run on which events
 ├── hooks/              # All hook scripts (bash, executable)
+│   ├── json-helper.sh  # Shared JSON parser (sourced by all hooks)
 │   ├── validate-bash.sh
 │   ├── guard-files.sh
 │   ├── format.sh

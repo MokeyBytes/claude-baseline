@@ -14,10 +14,9 @@ if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
   } >> "$CLAUDE_ENV_FILE"
 fi
 
-# Check for jq — all other hooks depend on it
-if ! command -v jq &>/dev/null; then
-  echo "WARNING: jq is not installed — all hooks will be disabled (no-op)" >&2
-  echo "  Install: brew install jq (macOS) | sudo apt install jq (Linux)" >&2
+# Check for python3 — json-helper.sh depends on it (jq used as fallback)
+if ! command -v python3 &>/dev/null && ! command -v jq &>/dev/null; then
+  echo "WARNING: neither python3 nor jq found — all hooks will be disabled (no-op)" >&2
 fi
 
 echo "Session initialized"
