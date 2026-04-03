@@ -44,19 +44,19 @@ BLOCKED: 'git push' requires explicit user intent.
 Run it yourself with:  ! git push -u origin main
 ```
 
-| Category | Patterns |
-|----------|----------|
-| Git push | `git push` (all variants including `--force`, `-f`, `-u`) |
+| Category   | Patterns                                                                   |
+| ---------- | -------------------------------------------------------------------------- |
+| Git push   | `git push` (all variants including `--force`, `-f`, `-u`)                  |
 | Publishing | `npm publish`, `yarn publish`, `cargo publish`, `twine upload`, `gem push` |
 
 **Destructive commands** — always blocked with no workaround:
 
-| Category | Patterns |
-|----------|----------|
-| Filesystem | `rm -rf`, `mkfs.`, `dd if=`, `> /dev/sda`, fork bombs |
-| Database | `DROP TABLE`, `DROP DATABASE` |
-| Git | `reset --hard`, `clean -fd`, `clean -fx`, `checkout -- .` |
-| Permissions | `chmod -R 777 /`, `chmod 777 /` |
+| Category    | Patterns                                                   |
+| ----------- | ---------------------------------------------------------- |
+| Filesystem  | `rm -rf`, `mkfs.`, `dd if=`, `> /dev/sda`, fork bombs      |
+| Database    | `DROP TABLE`, `DROP DATABASE`                              |
+| Git         | `reset --hard`, `clean -fd`, `clean -fx`, `checkout -- .`  |
+| Permissions | `chmod -R 777 /`, `chmod 777 /`                            |
 | Remote exec | `curl \| bash`, `curl \| sh`, `wget \| bash`, `wget \| sh` |
 
 All patterns are matched case-insensitively as substrings.
@@ -76,16 +76,27 @@ Prevents Claude from writing to files that should never be directly edited.
 
 Auto-formats files after every write using whatever formatter is available on your system.
 
-| Extension | Formatter | Linter |
-|-----------|-----------|--------|
-| js, jsx, ts, tsx, json, css, scss, md, html, yaml, yml | Prettier | ESLint (js/ts only) |
-| py | Black | — |
-| go | gofmt | — |
+| Extension                                              | Formatter (preference order)   | Linter                        |
+| ------------------------------------------------------ | ------------------------------ | ----------------------------- |
+| js, jsx, ts, tsx, json, css, scss, md, html, yaml, yml | Biome → Prettier               | Biome → ESLint (js/ts only)   |
+| py                                                     | Ruff → Black → autopep8 → YAPF | Ruff (via `ruff check --fix`) |
+| go                                                     | gofmt                          | —                             |
+| rs                                                     | rustfmt                        | —                             |
+| sh, bash                                               | shfmt                          | —                             |
+| c, h, cpp, cc, cxx, hpp, m, mm                         | clang-format                   | —                             |
+| java                                                   | google-java-format             | —                             |
+| kt, kts                                                | ktfmt                          | —                             |
+| swift                                                  | swift-format                   | —                             |
+| dart                                                   | dart format                    | —                             |
+| rb                                                     | RuboCop                        | —                             |
+| php                                                    | php-cs-fixer                   | —                             |
+| lua                                                    | StyLua                         | —                             |
+| zig                                                    | zig fmt                        | —                             |
 
-When a formatter is missing, the hook shows a non-interruptive hint via `systemMessage`:
+The hook uses the first available formatter in the preference chain. When no formatter is found, a non-interruptive hint is shown via `systemMessage` with a **platform-aware install command** (macOS/Linux/Windows):
 
 ```
-Auto-format skipped — missing: prettier (npm i -g prettier), eslint (npm i -g eslint)
+Auto-format skipped — missing: biome (npm i -g @biomejs/biome)
 ```
 
 This is displayed to the user in the UI but **not fed to Claude** — it won't interrupt the workflow or trigger Claude to install anything. Type-checking (`tsc --noEmit`) is intentionally not run here since it checks the entire project per file save; it runs once in the Stop hook instead.
@@ -106,7 +117,7 @@ Session initialized
 - **Project root** — from `git rev-parse --show-toplevel` or `pwd`
 - **Git branch** — current branch or `detached`
 - **Environment** — `$NODE_ENV` (defaults to `development`)
-- **Available tools** — scans for `prettier`, `eslint`, `tsc`, `black`, `ruff`, `gofmt`, `rustfmt`, `cargo`
+- **Available tools** — scans for `biome`, `prettier`, `eslint`, `tsc`, `ruff`, `black`, `autopep8`, `yapf`, `gofmt`, `rustfmt`, `shfmt`, `clang-format`, `google-java-format`, `ktfmt`, `swift-format`, `dart`, `rubocop`, `php-cs-fixer`, `stylua`, `zig`, `cargo`
 - **Project type** — detected from manifest files (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `composer.json`)
 
 Exports `PROJECT_ROOT`, `GIT_BRANCH`, and `NODE_ENV` into `$CLAUDE_ENV_FILE` when available. Warns if neither `python3` nor `jq` is found (all other hooks would be disabled).
@@ -115,15 +126,15 @@ Exports `PROJECT_ROOT`, `GIT_BRANCH`, and `NODE_ENV` into `$CLAUDE_ENV_FILE` whe
 
 Logs every prompt with a UTC timestamp and session ID to `.claude/logs/prompts.log` (gitignored). Before logging, prompts are scrubbed through a redaction filter that replaces known secret patterns with `[REDACTED]`:
 
-| Pattern | Examples |
-|---------|----------|
-| OpenAI / Anthropic keys | `sk-proj-abc123...` |
-| GitHub tokens | `ghp_*`, `gho_*`, `github_pat_*` |
-| Slack tokens | `xoxb-*`, `xoxp-*`, `xoxa-*` |
-| AWS access keys | `AKIA*` |
-| JWTs | `eyJ*.*` |
-| PEM private keys | `-----BEGIN * KEY-----` |
-| Generic secrets | any value assigned to a variable containing `secret`, `token`, `key`, `password`, `credential`, or `api_key` |
+| Pattern                 | Examples                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| OpenAI / Anthropic keys | `sk-proj-abc123...`                                                                                          |
+| GitHub tokens           | `ghp_*`, `gho_*`, `github_pat_*`                                                                             |
+| Slack tokens            | `xoxb-*`, `xoxp-*`, `xoxa-*`                                                                                 |
+| AWS access keys         | `AKIA*`                                                                                                      |
+| JWTs                    | `eyJ*.*`                                                                                                     |
+| PEM private keys        | `-----BEGIN * KEY-----`                                                                                      |
+| Generic secrets         | any value assigned to a variable containing `secret`, `token`, `key`, `password`, `credential`, or `api_key` |
 
 Warns (but does not block) if a prompt contains patterns like `rm -rf` or `DROP TABLE` — these are natural language, not commands, so blocking would be too aggressive.
 
@@ -141,13 +152,13 @@ This lets you switch to other tasks while Claude works and get alerted when it's
 
 Logs every settings or skills file change to `.claude/logs/config-changes.log` (gitignored) with timestamp, session ID, source type, and file path. Fires when any configuration file is modified during a session:
 
-| Source | File |
-|--------|------|
-| `user_settings` | `~/.claude/settings.json` |
-| `project_settings` | `.claude/settings.json` |
-| `local_settings` | `.claude/settings.local.json` |
-| `policy_settings` | managed policy settings |
-| `skills` | skill files in `.claude/skills/` |
+| Source             | File                             |
+| ------------------ | -------------------------------- |
+| `user_settings`    | `~/.claude/settings.json`        |
+| `project_settings` | `.claude/settings.json`          |
+| `local_settings`   | `.claude/settings.local.json`    |
+| `policy_settings`  | managed policy settings          |
+| `skills`           | skill files in `.claude/skills/` |
 
 ### `post-run-tests.sh` (Stop)
 
@@ -227,13 +238,26 @@ Type `/hooks` in Claude Code to browse all configured hooks grouped by event and
 
 Install whichever formatters apply to your stack. Missing tools trigger a non-interruptive `systemMessage` hint.
 
-| Tool | Install | Used By |
-|------|---------|---------|
-| [Prettier](https://prettier.io/) | `npm i -g prettier` | `format.sh` |
-| [ESLint](https://eslint.org/) | `npm i -g eslint` | `format.sh` |
-| [TypeScript](https://www.typescriptlang.org/) | `npm i -g typescript` | `post-run-tests.sh` |
-| [Black](https://black.readthedocs.io/) | `pip install black` | `format.sh` |
-| [gofmt](https://pkg.go.dev/cmd/gofmt) | included with Go | `format.sh` |
+| Tool                                                               | macOS                                               | Linux                        | Windows                  |
+| ------------------------------------------------------------------ | --------------------------------------------------- | ---------------------------- | ------------------------ |
+| [Biome](https://biomejs.dev/)                                      | `npm i -g @biomejs/biome`                           | (same)                       | (same)                   |
+| [Prettier](https://prettier.io/)                                   | `npm i -g prettier`                                 | (same)                       | (same)                   |
+| [ESLint](https://eslint.org/)                                      | `npm i -g eslint`                                   | (same)                       | (same)                   |
+| [TypeScript](https://www.typescriptlang.org/)                      | `npm i -g typescript`                               | (same)                       | (same)                   |
+| [Ruff](https://docs.astral.sh/ruff/)                               | `brew install ruff`                                 | `pip install ruff`           | `pip install ruff`       |
+| [Black](https://black.readthedocs.io/)                             | `pip install black`                                 | (same)                       | (same)                   |
+| [gofmt](https://pkg.go.dev/cmd/gofmt)                              | `brew install go`                                   | `apt install golang`         | `choco install golang`   |
+| [rustfmt](https://github.com/rust-lang/rustfmt)                    | `rustup component add rustfmt`                      | (same)                       | (same)                   |
+| [shfmt](https://github.com/mvdan/sh)                               | `brew install shfmt`                                | `apt install shfmt`          | `choco install shfmt`    |
+| [clang-format](https://clang.llvm.org/docs/ClangFormat.html)       | `brew install clang-format`                         | `apt install clang-format`   | `choco install llvm`     |
+| [google-java-format](https://github.com/google/google-java-format) | `brew install google-java-format`                   | GitHub releases              | GitHub releases          |
+| [ktfmt](https://github.com/facebook/ktfmt)                         | `brew install ktfmt`                                | GitHub releases              | GitHub releases          |
+| [swift-format](https://github.com/swiftlang/swift-format)          | `brew install swift-format`                         | GitHub releases              | GitHub releases          |
+| [Dart](https://dart.dev/)                                          | `brew install dart`                                 | `apt install dart`           | `choco install dart-sdk` |
+| [RuboCop](https://rubocop.org/)                                    | `gem install rubocop`                               | (same)                       | (same)                   |
+| [php-cs-fixer](https://cs.symfony.com/)                            | `composer global require friendsofphp/php-cs-fixer` | (same)                       | (same)                   |
+| [StyLua](https://github.com/JohnnyMorganz/StyLua)                  | `brew install stylua`                               | `cargo install stylua`       | `cargo install stylua`   |
+| [Zig](https://ziglang.org/)                                        | `brew install zig`                                  | `snap install zig --classic` | `choco install zig`      |
 
 ### Optional (notifications)
 
