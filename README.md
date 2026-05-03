@@ -21,6 +21,8 @@ A drop-in `.claude/` configuration that adds safety guardrails, auto-formatting,
 
 ## Quick Start
 
+**1. Copy the baseline into your project:**
+
 ```bash
 git clone https://github.com/MokeyBytes/claude-baseline.git /tmp/claude-baseline
 cp -r /tmp/claude-baseline/.claude /path/to/your/project/
@@ -28,7 +30,17 @@ cp /tmp/claude-baseline/CLAUDE.md /path/to/your/project/
 rm -rf /tmp/claude-baseline
 ```
 
-Open `CLAUDE.md` and fill in the placeholders for your stack. Then open a Claude Code session:
+**2. Customize `CLAUDE.md` for your project:**
+
+Open `CLAUDE.md` and make these edits before your first session:
+
+- Replace `[YOUR NAME OR TEAM]` with your name or team
+- Replace `[LANGUAGE / FRAMEWORK / DATABASE]` with your actual stack
+- Replace `[PACKAGE MANAGER]` and `[TEST RUNNER]` with what you use
+- Delete the code style blocks that do not apply (keep TypeScript, or Python, or Go, etc. — not all of them)
+- Fill in any `[CUSTOMIZE]` sections with project-specific rules
+
+**3. Open a Claude Code session:**
 
 ```
 Session initialized
