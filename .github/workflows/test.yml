@@ -19,4 +19,4 @@ jobs:
           sudo /tmp/bats-core/install.sh /usr/local
 
       - name: Run hook tests
-        run: bash .claude/tests/run_tests.sh
+        run: bash tests/run_tests.sh

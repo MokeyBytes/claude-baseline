@@ -2,7 +2,7 @@
 # Tests for session-summary.sh — stop hook that emits session summary as systemMessage.
 
 setup() {
-	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	HOOK="$REPO_ROOT/.claude/hooks/session-summary.sh"
 	SPAWN_LOG="$REPO_ROOT/.claude/logs/agent-spawns.log"
 	TEST_SESSION="bats-summary-$$-$RANDOM"

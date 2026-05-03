@@ -2,7 +2,7 @@
 # Tests for validate-bash.sh — destructive command blocking and user-intent blocking.
 
 setup() {
-	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	HOOK="$REPO_ROOT/.claude/hooks/validate-bash.sh"
 }
 

@@ -2,7 +2,7 @@
 # Tests for guard-agents.sh — per-session spawn limits, tier classification, soft warning.
 
 setup() {
-	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	HOOK="$REPO_ROOT/.claude/hooks/guard-agents.sh"
 	SPAWN_LOG="$REPO_ROOT/.claude/logs/agent-spawns.log"
 	# Unique session per test to avoid counter pollution

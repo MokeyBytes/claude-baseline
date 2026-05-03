@@ -2,7 +2,7 @@
 # Run all hook tests. Requires bats-core: brew install bats-core
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 if ! command -v bats &>/dev/null; then
@@ -11,4 +11,4 @@ if ! command -v bats &>/dev/null; then
 fi
 
 echo "Running hook tests from $REPO_ROOT"
-bats .claude/tests/*.bats
+bats tests/*.bats

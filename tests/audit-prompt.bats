@@ -2,7 +2,7 @@
 # Tests for audit-prompt.sh — prompt logging and secret redaction.
 
 setup() {
-	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	HOOK="$REPO_ROOT/.claude/hooks/audit-prompt.sh"
 	PROMPT_LOG="$REPO_ROOT/.claude/logs/prompts.log"
 	TEST_SESSION="bats-prompt-$$-$RANDOM"

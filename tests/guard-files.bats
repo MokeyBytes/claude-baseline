@@ -2,7 +2,7 @@
 # Tests for guard-files.sh — blocks writes to env files, lockfiles, secrets, .git/, and out-of-project paths.
 
 setup() {
-	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+	REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	HOOK="$REPO_ROOT/.claude/hooks/guard-files.sh"
 }
 
