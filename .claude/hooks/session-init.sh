@@ -68,4 +68,12 @@ if [[ -d "$AGENTS_DIR" ]]; then
 	fi
 fi
 
+# Show cumulative agent spawn stats from persistent cross-session log
+SPAWN_LOG="$PROJECT_ROOT/.claude/logs/agent-spawns.log"
+if [[ -f "$SPAWN_LOG" ]]; then
+	TOTAL_ALL=$(wc -l <"$SPAWN_LOG" | tr -d ' ')
+	HEAVY_ALL=$(grep -c 'tier=high' "$SPAWN_LOG" 2>/dev/null || echo 0)
+	echo "  Spawns:  $TOTAL_ALL all-time ($HEAVY_ALL opus)"
+fi
+
 exit 0

@@ -53,6 +53,7 @@ Session initialized
     code-reviewer (claude-sonnet-4-6, low)
     debugger (claude-opus-4-7, high)
     ...
+  Spawns:  47 all-time (8 opus)
 ```
 
 Confirm hooks are active with `/hooks` and agents with `/agents`.
@@ -250,6 +251,19 @@ Cost watch: 16/20 agent spawns used this session (opus: 3/4).
 ```
 
 Counters reset automatically when a new session starts (new session ID = new `/tmp/` files).
+
+Every allowed spawn is also appended to `.claude/logs/agent-spawns.log` (gitignored) for persistent cross-session tracking:
+
+```
+[2026-05-03T14:23:01Z] session=abc123 agent=code-reviewer tier=mid total=3 heavy=0
+[2026-05-03T14:25:44Z] session=abc123 agent=debugger tier=high total=4 heavy=1
+```
+
+At session start, `session-init.sh` reads this log and reports all-time totals:
+
+```
+  Spawns:  47 all-time (8 opus)
+```
 
 To raise limits for a specific project, set the env vars in `.claude/settings.local.json`:
 

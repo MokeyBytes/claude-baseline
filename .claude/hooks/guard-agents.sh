@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse hook for Agent — enforces per-session spawn limits to control costs.
+# PreToolUse hook for Agent — enforces per-session spawn limits and logs all spawns for cost telemetry.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +23,9 @@ HEAVY_FILE="/tmp/claude-agents-heavy-${SESSION_ID}"
 # Agents backed by claude-opus-* models (highest cost tier)
 HEAVY_AGENTS=("debugger" "migration-planner")
 
+# Agents backed by claude-haiku-* models (lowest cost tier)
+LOW_AGENTS=("doc-writer" "dependency-auditor" "performance-reviewer")
+
 is_heavy() {
 	local agent="$1"
 	local h
@@ -30,6 +33,18 @@ is_heavy() {
 		[[ "$agent" == "$h" ]] && return 0
 	done
 	return 1
+}
+
+get_tier() {
+	local agent="$1"
+	local h
+	for h in "${HEAVY_AGENTS[@]}"; do
+		[[ "$agent" == "$h" ]] && echo "high" && return
+	done
+	for h in "${LOW_AGENTS[@]}"; do
+		[[ "$agent" == "$h" ]] && echo "low" && return
+	done
+	echo "mid"
 }
 
 read_count() {
@@ -72,11 +87,18 @@ if is_heavy "$AGENT_TYPE"; then
 	increment "$HEAVY_FILE"
 fi
 
-# Soft warning at 80% of total (systemMessage: shown to user, not fed to Claude)
-WARN_AT=$((MAX_TOTAL * 80 / 100))
 UPDATED_TOTAL=$(read_count "$TOTAL_FILE")
 UPDATED_HEAVY=$(read_count "$HEAVY_FILE")
 
+# Append to persistent cross-session spawn log (gitignored)
+LOG_DIR="$SCRIPT_DIR/../logs"
+mkdir -p "$LOG_DIR"
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+TIER=$(get_tier "$AGENT_TYPE")
+echo "[$TIMESTAMP] session=$SESSION_ID agent=$AGENT_TYPE tier=$TIER total=$UPDATED_TOTAL heavy=$UPDATED_HEAVY" >>"$LOG_DIR/agent-spawns.log"
+
+# Soft warning at 80% of total (systemMessage: shown to user, not fed to Claude)
+WARN_AT=$((MAX_TOTAL * 80 / 100))
 if [[ "$UPDATED_TOTAL" -ge "$WARN_AT" ]]; then
 	echo "{\"systemMessage\": \"Cost watch: $UPDATED_TOTAL/$MAX_TOTAL agent spawns used this session (opus: $UPDATED_HEAVY/$MAX_HEAVY).\"}"
 fi
