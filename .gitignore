@@ -1,1 +1,3 @@
-.claude/logs/
+.claude/logs/*
+!.claude/logs/.gitkeep
+.claude/agent-memory/

@@ -51,4 +51,21 @@ if [[ ${#MANIFESTS[@]} -gt 0 ]]; then
 	echo "  Stack:   ${MANIFESTS[*]}"
 fi
 
+# Detect loaded agents from .claude/agents/
+AGENTS_DIR="$PROJECT_ROOT/.claude/agents"
+if [[ -d "$AGENTS_DIR" ]]; then
+	AGENT_LINES=()
+	while IFS= read -r agent_file; do
+		name=$(grep -m1 '^name:' "$agent_file" 2>/dev/null | sed 's/^name:[[:space:]]*//')
+		model=$(grep -m1 '^model:' "$agent_file" 2>/dev/null | sed 's/^model:[[:space:]]*//')
+		effort=$(grep -m1 '^effort:' "$agent_file" 2>/dev/null | sed 's/^effort:[[:space:]]*//')
+		[[ -n "$name" ]] && AGENT_LINES+=("    $name ($model${effort:+, $effort})")
+	done < <(find "$AGENTS_DIR" -maxdepth 1 -name '*.md' | sort)
+
+	if [[ ${#AGENT_LINES[@]} -gt 0 ]]; then
+		echo "  Agents:"
+		printf '%s\n' "${AGENT_LINES[@]}"
+	fi
+fi
+
 exit 0

@@ -1,12 +1,24 @@
 # Claude Code Hooks Baseline
 
-A drop-in set of [Claude Code hooks](https://code.claude.com/docs/en/hooks) that add safety guardrails, auto-formatting, audit logging, desktop notifications, and test verification to any project. Copy the `.claude/` directory into your repo and start coding.
+A drop-in `.claude/` directory that adds safety guardrails, auto-formatting, audit logging, desktop notifications, test verification, and a full multi-agent orchestration system to any project. Copy it into your repo and start coding.
 
 ## What's Included
 
 ```
 .claude/
 ├── settings.json            # Hook configuration (events, matchers, timeouts)
+├── agents/                  # Orchestrator + 10 specialist agents
+│   ├── orchestrator.md      # Default agent — routes all tasks to specialists
+│   ├── code-reviewer.md     # Correctness, security, style, performance review
+│   ├── security-auditor.md  # Secrets, injection vectors, CVEs, auth gaps
+│   ├── doc-writer.md        # TSDoc, module docs, README sections
+│   ├── test-writer.md       # Unit and integration test generation
+│   ├── refactor.md          # Structure, naming, complexity cleanup
+│   ├── debugger.md          # Root cause analysis and fix proposals
+│   ├── code-humanizer.md    # Readability, naming clarity, complexity reduction
+│   ├── dependency-auditor.md # Outdated, vulnerable, and abandoned packages
+│   ├── performance-reviewer.md # N+1, re-renders, unoptimized loops
+│   └── migration-planner.md # DB migrations, breaking changes, version bumps
 └── hooks/
     ├── json-helper.sh       # Shared JSON parser — python3 with jq fallback
     ├── validate-bash.sh     # PreToolUse      — blocks destructive and user-intent commands
@@ -29,6 +41,92 @@ SessionStart ──► UserPromptSubmit ──► PreToolUse ──► [tool run
 Notification (anytime Claude waits) ◄────────────────────────────────────┘
 ConfigChange (anytime settings change)                                    │
                                                                     Stop ◄┘
+```
+
+## Agents
+
+The `agents/` directory provides an orchestrator and 10 specialist agents. The orchestrator is the default agent for all tasks — it reads each request, routes to the appropriate specialists (in parallel where possible), and synthesizes their outputs into a single response.
+
+### How it works
+
+The orchestrator handles two execution modes depending on whether the specialists are independent or dependent on each other's output.
+
+**Parallel** — independent tasks run simultaneously:
+
+```
+User request
+    │
+    ▼
+orchestrator
+    │
+    ├──► code-reviewer        ──┐
+    ├──► security-auditor     ──┤
+    └──► dependency-auditor   ──┘
+                                │
+                                ▼
+                        synthesized response
+```
+
+**Pipeline** — dependent tasks run sequentially, each receiving the previous agent's full output as context:
+
+```
+User request ("refactor and test")
+    │
+    ▼
+orchestrator
+    │
+    ▼
+refactor ──► (output) ──► code-reviewer ──► (output) ──► test-writer
+                                                              │
+                                                              ▼
+                                                      synthesized response
+```
+
+Built-in pipelines:
+
+| Pipeline            | Trigger                                    | Steps                                        |
+| ------------------- | ------------------------------------------ | -------------------------------------------- |
+| Improve             | "clean up", "refactor and review"          | `refactor` → `code-reviewer`                 |
+| Full improvement    | "refactor and test", "clean up with tests" | `refactor` → `code-reviewer` → `test-writer` |
+| Fix and verify      | "fix this bug", "debug and test"           | `debugger` → `test-writer`                   |
+| Humanize and verify | "make readable", "humanize and check"      | `code-humanizer` → `code-reviewer`           |
+| Plan and review     | "plan this migration", "plan and validate" | `migration-planner` → `code-reviewer`        |
+
+The orchestrator never writes or edits code itself. All file modifications go through specialists, and every tool call passes through the existing hooks — `validate-bash.sh` and `guard-files.sh` fire regardless of which agent is active.
+
+### Agents
+
+| Agent                  | Model                     | Effort | Permission | Tools                         | Purpose                                                   |
+| ---------------------- | ------------------------- | ------ | ---------- | ----------------------------- | --------------------------------------------------------- |
+| `orchestrator`         | claude-sonnet-4-6         | low    | default    | Read, Grep, Agent             | Routes all tasks to specialists. Default for the project. |
+| `code-reviewer`        | claude-sonnet-4-6         | low    | plan       | Read, Grep                    | Correctness, security, style, performance review          |
+| `security-auditor`     | claude-sonnet-4-6         | low    | plan       | Read, Grep, Bash              | Secrets, injection vectors, CVEs, auth gaps               |
+| `doc-writer`           | claude-haiku-4-5-20251001 | low    | default    | Read, Grep, Edit, Write       | TSDoc, module docs, README sections                       |
+| `test-writer`          | claude-sonnet-4-6         | medium | default    | Read, Grep, Edit, Write, Bash | Unit and integration test generation                      |
+| `refactor`             | claude-sonnet-4-6         | low    | default    | Read, Grep, Edit              | Structure, naming, complexity cleanup                     |
+| `debugger`             | claude-opus-4-7           | high   | default    | Read, Grep, Bash              | Root cause analysis and fix proposals                     |
+| `code-humanizer`       | claude-sonnet-4-6         | medium | default    | Read, Grep, Edit              | Naming clarity, readability, complexity reduction         |
+| `dependency-auditor`   | claude-haiku-4-5-20251001 | low    | plan       | Read, Bash                    | Outdated, vulnerable, and abandoned package scanning      |
+| `performance-reviewer` | claude-haiku-4-5-20251001 | low    | plan       | Read, Grep                    | N+1, re-renders, unoptimized loops, missing pagination    |
+| `migration-planner`    | claude-opus-4-7           | medium | plan       | Read, Grep                    | DB migrations, breaking API changes, version bump plans   |
+
+### Safety model
+
+Agents do not bypass hooks. Every Bash call passes through `validate-bash.sh` (blocks destructive commands, intercepts user-intent commands). Every file write passes through `guard-files.sh` (blocks `.env`, lockfiles, secrets, out-of-project paths) and then through `format.sh`. Agents are constrained at two layers:
+
+- **Tool lists** — each agent declares only the tools it needs. `code-reviewer` and `performance-reviewer` have no write tools and cannot modify files.
+- **`permissionMode: plan`** — five read-only agents (`code-reviewer`, `security-auditor`, `performance-reviewer`, `migration-planner`, `dependency-auditor`) run in plan mode, which enforces read-only access at the runtime level independent of the tool list.
+
+The orchestrator builds persistent cross-session memory at `.claude/agent-memory/orchestrator/` (gitignored). This lets it learn codebase patterns and routing preferences over time without shipping user-specific context when the baseline is shared.
+
+### Invoking agents directly
+
+You can bypass the orchestrator and call a specialist directly:
+
+```
+@code-reviewer review the auth changes
+@security-auditor scan for secrets
+@migration-planner plan the users table rename
 ```
 
 ## Hooks
@@ -112,6 +210,18 @@ Session initialized
   Env:     development
   Tools:   prettier eslint tsc
   Stack:   node
+  Agents:
+    code-humanizer (claude-sonnet-4-6, medium)
+    code-reviewer (claude-sonnet-4-6, low)
+    debugger (claude-opus-4-7, high)
+    dependency-auditor (claude-haiku-4-5-20251001, low)
+    doc-writer (claude-haiku-4-5-20251001, low)
+    migration-planner (claude-opus-4-7, medium)
+    orchestrator (claude-sonnet-4-6, low)
+    performance-reviewer (claude-haiku-4-5-20251001, low)
+    refactor (claude-sonnet-4-6, low)
+    security-auditor (claude-sonnet-4-6, low)
+    test-writer (claude-sonnet-4-6, medium)
 ```
 
 - **Project root** — from `git rev-parse --show-toplevel` or `pwd`
@@ -119,6 +229,7 @@ Session initialized
 - **Environment** — `$NODE_ENV` (defaults to `development`)
 - **Available tools** — scans for `biome`, `prettier`, `eslint`, `tsc`, `ruff`, `black`, `autopep8`, `yapf`, `gofmt`, `rustfmt`, `shfmt`, `clang-format`, `google-java-format`, `ktfmt`, `swift-format`, `dart`, `rubocop`, `php-cs-fixer`, `stylua`, `zig`, `cargo`
 - **Project type** — detected from manifest files (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `Gemfile`, `composer.json`)
+- **Loaded agents** — scans `.claude/agents/` and lists each agent with its model and effort level
 
 Exports `PROJECT_ROOT`, `GIT_BRANCH`, and `NODE_ENV` into `$CLAUDE_ENV_FILE` when available. Warns if neither `python3` nor `jq` is found (all other hooks would be disabled).
 
@@ -213,7 +324,7 @@ Copy the `.claude/` directory (with `settings.json` and the `hooks/` folder) int
 
 ### Verify
 
-Start a Claude Code session in your project. You should see the session initialization output:
+Start a Claude Code session in your project. You should see the session initialization output including all loaded agents:
 
 ```
 Session initialized
@@ -222,9 +333,14 @@ Session initialized
   Env:     development
   Tools:   prettier eslint tsc
   Stack:   node
+  Agents:
+    code-humanizer (claude-sonnet-4-6, medium)
+    code-reviewer (claude-sonnet-4-6, low)
+    debugger (claude-opus-4-7, high)
+    ...
 ```
 
-Type `/hooks` in Claude Code to browse all configured hooks grouped by event and confirm they're loaded.
+Type `/hooks` to confirm hooks are loaded and `/agents` to list all available agents.
 
 ## Dependencies
 
@@ -299,13 +415,35 @@ Remove or comment out the corresponding entry in `.claude/settings.json`. The ho
 
 Add `"disableAllHooks": true` to your `settings.json` to disable every hook at once.
 
+### Adding or replacing agents
+
+Add a `.md` file to `.claude/agents/` with YAML frontmatter defining `name`, `description`, `tools`, `model`, and `effort`. The orchestrator will automatically include it in its routing table on the next session — no changes to `settings.json` required.
+
+To replace a specialist, delete or rename its `.md` file and add your own with the same `name` field.
+
+### Adjusting model or effort per agent
+
+Edit the `model` and `effort` fields in the relevant agent's frontmatter. Valid effort values: `low`, `medium`, `high`, `xhigh`, `max`. Changes take effect immediately on the next session.
+
 ## Project Structure
 
 ```
 .claude/
-├── settings.json       # Hook wiring — events, matchers, timeouts
-├── hooks/              # All hook scripts (bash, executable)
-│   ├── json-helper.sh  # Shared JSON parser (sourced by all hooks)
+├── settings.json            # Hook wiring — events, matchers, timeouts
+├── agents/                  # Orchestrator + 10 specialist agents
+│   ├── orchestrator.md      # Default — routes and pipelines all tasks
+│   ├── code-reviewer.md
+│   ├── security-auditor.md
+│   ├── doc-writer.md
+│   ├── test-writer.md
+│   ├── refactor.md
+│   ├── debugger.md
+│   ├── code-humanizer.md
+│   ├── dependency-auditor.md
+│   ├── performance-reviewer.md
+│   └── migration-planner.md
+├── hooks/                   # All hook scripts (bash, executable)
+│   ├── json-helper.sh       # Shared JSON parser (sourced by all hooks)
 │   ├── validate-bash.sh
 │   ├── guard-files.sh
 │   ├── format.sh
@@ -314,9 +452,9 @@ Add `"disableAllHooks": true` to your `settings.json` to disable every hook at o
 │   ├── notify.sh
 │   ├── audit-config.sh
 │   └── post-run-tests.sh
-└── logs/               # Created at runtime, gitignored
-    ├── prompts.log         # Prompt audit log
-    └── config-changes.log  # Config change audit log
+├── logs/                    # Gitignored — created at runtime
+│   └── .gitkeep
+└── agent-memory/            # Gitignored — orchestrator cross-session memory
 ```
 
 ## License
