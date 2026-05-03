@@ -76,4 +76,10 @@ if [[ -f "$SPAWN_LOG" ]]; then
 	echo "  Spawns:  $TOTAL_ALL all-time ($HEAVY_ALL opus)"
 fi
 
+# Store initial HEAD so session-summary.sh can diff the full session's changes
+if [[ -n "${CLAUDE_SESSION_ID:-}" ]]; then
+	INITIAL_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "")
+	[[ -n "$INITIAL_HEAD" ]] && echo "$INITIAL_HEAD" >"/tmp/claude-session-head-${CLAUDE_SESSION_ID}"
+fi
+
 exit 0

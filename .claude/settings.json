@@ -102,6 +102,16 @@
             "timeout": 150000
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-summary.sh",
+            "timeout": 30000
+          }
+        ]
       }
     ]
   }

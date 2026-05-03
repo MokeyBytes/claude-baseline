@@ -6,16 +6,17 @@ A drop-in `.claude/` configuration that adds safety guardrails, auto-formatting,
 
 ## What It Does
 
-| Layer             | What you get                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **Safety**        | Blocks destructive commands and writes to sensitive files before they execute                           |
-| **Formatting**    | Auto-formats every file Claude writes, across 15+ languages                                             |
-| **Observability** | Logs every prompt (with secret redaction) and every config change                                       |
-| **Notifications** | Desktop alerts when Claude needs your input                                                             |
-| **Verification**  | Runs type-checking and tests automatically when Claude finishes                                         |
-| **Cost controls** | Per-session agent spawn limits with hard blocks and soft warnings                                       |
-| **Agents**        | Orchestrator + 10 specialist agents with cost-aware routing, parallel execution, and built-in pipelines |
-| **CLAUDE.md**     | Starter template for project-level Claude instructions                                                  |
+| Layer               | What you get                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Safety**          | Blocks destructive commands and writes to sensitive files before they execute                             |
+| **Formatting**      | Auto-formats every file Claude writes, across 15+ languages                                               |
+| **Observability**   | Logs every prompt (with secret redaction) and every config change                                         |
+| **Notifications**   | Desktop alerts when Claude needs your input                                                               |
+| **Verification**    | Runs type-checking and tests automatically when Claude finishes                                           |
+| **Cost controls**   | Per-session agent spawn limits with hard blocks and soft warnings                                         |
+| **Session summary** | Non-disruptive end-of-session report: files changed, agent cost estimate, and new TODO/FIXME/HACK markers |
+| **Agents**          | Orchestrator + 10 specialist agents with cost-aware routing, parallel execution, and built-in pipelines   |
+| **CLAUDE.md**       | Starter template for project-level Claude instructions                                                    |
 
 ---
 
@@ -88,7 +89,8 @@ CLAUDE.md                        # Project instructions template for Claude
 │   ├── audit-prompt.sh          # UserPromptSubmit: logs prompts with secret redaction
 │   ├── notify.sh                # Notification: desktop alerts on idle/permission
 │   ├── audit-config.sh          # ConfigChange: logs settings and skills changes
-│   └── post-run-tests.sh        # Stop: runs type-checking and tests
+│   ├── post-run-tests.sh        # Stop: runs type-checking and tests
+│   └── session-summary.sh       # Stop: session summary, cost estimate, TODO scanner
 ├── logs/                        # Gitignored, created at runtime
 └── agent-memory/                # Gitignored, orchestrator cross-session memory
 ```
@@ -365,6 +367,30 @@ When files have changed:
 All commands run with a 120-second timeout (`gtimeout` on macOS, `timeout` on Linux). If neither is available, tests run without a timeout.
 
 **Infinite loop protection:** When a Stop hook exits with code 2, Claude re-enters to fix the issue, then stops again, re-firing the hook. The hook checks the `stop_hook_active` field and exits immediately if `true` to prevent infinite loops. This is a [required pattern](https://docs.anthropic.com/en/docs/claude-code/hooks) for any Stop hook that can block.
+
+### `session-summary.sh` (Stop)
+
+Runs after every Claude response. Skips entirely if nothing happened (no files changed, no agents spawned). Otherwise, emits a single `systemMessage` shown in the UI but never fed back to Claude:
+
+```
+Session: 4 files changed | agents: 2 low, 1 mid, 1 high (~$0.57 est.) | 2 new TODO/FIXME/HACK
+```
+
+Three components in one line:
+
+**Files changed:** counts committed changes since the session start (diffed against the HEAD captured by `session-init.sh`) plus any uncommitted modifications.
+
+**Agent cost estimate:** reads the session's entries from `.claude/logs/agent-spawns.log`, groups them by tier, and multiplies by rough per-spawn rates:
+
+| Tier | Model  | Rate estimate |
+| ---- | ------ | ------------- |
+| Low  | Haiku  | $0.01/spawn   |
+| Mid  | Sonnet | $0.05/spawn   |
+| High | Opus   | $0.50/spawn   |
+
+**TODO/FIXME/HACK scanner:** diffs all added lines in the session and counts new markers. Only lines beginning with `+` (additions) are checked, so pre-existing markers never inflate the count.
+
+The hook always exits 0; it is purely informational and never blocks or re-triggers Claude.
 
 ---
 
