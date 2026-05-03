@@ -1,19 +1,21 @@
 # Claude Code Baseline
 
-A drop-in `.claude/` configuration that adds safety guardrails, auto-formatting, audit logging, desktop notifications, automated testing, and a full multi-agent orchestration system to any project. Copy it in and start coding.
+A drop-in `.claude/` configuration that adds safety guardrails, auto-formatting, audit logging, desktop notifications, automated testing, cost controls, and a full multi-agent orchestration system to any project. Copy it in, fill out `CLAUDE.md`, and start coding.
 
 ---
 
 ## What It Does
 
-| Layer             | What you get                                                                  |
-| ----------------- | ----------------------------------------------------------------------------- |
-| **Safety**        | Blocks destructive commands and writes to sensitive files before they execute |
-| **Formatting**    | Auto-formats every file Claude writes, across 15+ languages                   |
-| **Observability** | Logs every prompt (with secret redaction) and every config change             |
-| **Notifications** | Desktop alerts when Claude needs your input                                   |
-| **Verification**  | Runs type-checking and tests automatically when Claude finishes               |
-| **Agents**        | Orchestrator + 10 specialist agents with parallel and pipeline execution      |
+| Layer             | What you get                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| **Safety**        | Blocks destructive commands and writes to sensitive files before they execute                           |
+| **Formatting**    | Auto-formats every file Claude writes, across 15+ languages                                             |
+| **Observability** | Logs every prompt (with secret redaction) and every config change                                       |
+| **Notifications** | Desktop alerts when Claude needs your input                                                             |
+| **Verification**  | Runs type-checking and tests automatically when Claude finishes                                         |
+| **Cost controls** | Per-session agent spawn limits with hard blocks and soft warnings                                       |
+| **Agents**        | Orchestrator + 10 specialist agents with cost-aware routing, parallel execution, and built-in pipelines |
+| **CLAUDE.md**     | Starter template for project-level Claude instructions                                                  |
 
 ---
 
@@ -22,10 +24,11 @@ A drop-in `.claude/` configuration that adds safety guardrails, auto-formatting,
 ```bash
 git clone https://github.com/MokeyBytes/claude-baseline.git /tmp/claude-baseline
 cp -r /tmp/claude-baseline/.claude /path/to/your/project/
+cp /tmp/claude-baseline/CLAUDE.md /path/to/your/project/
 rm -rf /tmp/claude-baseline
 ```
 
-Open a Claude Code session in your project. You should see:
+Open `CLAUDE.md` and fill in the placeholders for your stack. Then open a Claude Code session:
 
 ```
 Session initialized
@@ -47,9 +50,10 @@ Confirm hooks are active with `/hooks` and agents with `/agents`.
 ## Project Structure
 
 ```
+CLAUDE.md                        # Project instructions template for Claude
 .claude/
-├── settings.json            # Hook wiring: events, matchers, timeouts
-├── agents/                  # Orchestrator + 10 specialist agents
+├── settings.json                # Hook wiring: events, matchers, timeouts
+├── agents/                      # Orchestrator + 10 specialist agents
 │   ├── orchestrator.md
 │   ├── code-reviewer.md
 │   ├── security-auditor.md
@@ -62,40 +66,59 @@ Confirm hooks are active with `/hooks` and agents with `/agents`.
 │   ├── performance-reviewer.md
 │   └── migration-planner.md
 ├── hooks/
-│   ├── json-helper.sh       # Shared JSON parser (python3 with jq fallback)
-│   ├── validate-bash.sh     # PreToolUse: blocks destructive commands
-│   ├── guard-files.sh       # PreToolUse: blocks writes to protected files
-│   ├── format.sh            # PostToolUse: auto-formats after every write
-│   ├── session-init.sh      # SessionStart: logs project context and tooling
-│   ├── audit-prompt.sh      # UserPromptSubmit: logs prompts with secret redaction
-│   ├── notify.sh            # Notification: desktop alerts on idle/permission
-│   ├── audit-config.sh      # ConfigChange: logs settings and skills changes
-│   └── post-run-tests.sh    # Stop: runs type-checking and tests
-├── logs/                    # Gitignored, created at runtime
-└── agent-memory/            # Gitignored, orchestrator cross-session memory
+│   ├── json-helper.sh           # Shared JSON parser (python3 with jq fallback)
+│   ├── validate-bash.sh         # PreToolUse: blocks destructive commands
+│   ├── guard-files.sh           # PreToolUse: blocks writes to protected files
+│   ├── guard-agents.sh          # PreToolUse: enforces per-session agent spawn limits
+│   ├── format.sh                # PostToolUse: auto-formats after every write
+│   ├── session-init.sh          # SessionStart: logs project context and tooling
+│   ├── audit-prompt.sh          # UserPromptSubmit: logs prompts with secret redaction
+│   ├── notify.sh                # Notification: desktop alerts on idle/permission
+│   ├── audit-config.sh          # ConfigChange: logs settings and skills changes
+│   └── post-run-tests.sh        # Stop: runs type-checking and tests
+├── logs/                        # Gitignored, created at runtime
+└── agent-memory/                # Gitignored, orchestrator cross-session memory
 ```
+
+---
+
+## CLAUDE.md
+
+`CLAUDE.md` is the project-level instruction file that Claude Code reads at the start of every session. The included template covers:
+
+- Project identity, stack, and package manager
+- Language-specific code style rules (TypeScript, Python, Go, Bash)
+- Naming conventions and banned identifiers
+- Engineering constraints (function size, nesting depth, error handling, input validation)
+- Comment policy
+- Git branch and commit format
+- Testing requirements
+- Output expectations
+- Safety rules
+
+Fill in the `[YOUR NAME OR TEAM]`, `[LANGUAGE / FRAMEWORK / DATABASE]`, and `[CUSTOMIZE]` placeholders, delete the style blocks that do not apply to your stack, and commit it. It will be read on every session start.
 
 ---
 
 ## Agents
 
-The orchestrator is the default agent for all tasks. It reads each request, routes to the appropriate specialists, and synthesizes their outputs. Specialists never bypass hooks; every Bash call and file write passes through the same safety layer regardless of which agent is active.
+The orchestrator is the default agent for all tasks. It reads each request, routes to the appropriate specialists using cost-aware logic, and synthesizes their outputs. Specialists never bypass hooks; every Bash call and file write passes through the same safety layer regardless of which agent is active.
 
 ### Specialist Roster
 
-| Agent                  | Model             | Effort | Mode    | Purpose                                                      |
-| ---------------------- | ----------------- | ------ | ------- | ------------------------------------------------------------ |
-| `orchestrator`         | claude-sonnet-4-6 | low    | default | Routes all tasks to specialists. Never writes code directly. |
-| `code-reviewer`        | claude-sonnet-4-6 | low    | plan    | Correctness, security, style, and performance review         |
-| `security-auditor`     | claude-sonnet-4-6 | low    | plan    | Secrets, injection vectors, CVEs, auth gaps                  |
-| `doc-writer`           | claude-haiku-4-5  | low    | default | TSDoc, module docs, README sections                          |
-| `test-writer`          | claude-sonnet-4-6 | medium | default | Unit and integration test generation                         |
-| `refactor`             | claude-sonnet-4-6 | low    | default | Structure, naming, and complexity cleanup                    |
-| `debugger`             | claude-opus-4-7   | high   | default | Root cause analysis and fix proposals                        |
-| `code-humanizer`       | claude-sonnet-4-6 | medium | default | Naming clarity, readability, complexity reduction            |
-| `dependency-auditor`   | claude-haiku-4-5  | low    | plan    | Outdated, vulnerable, and abandoned package scanning         |
-| `performance-reviewer` | claude-haiku-4-5  | low    | plan    | N+1, re-renders, unoptimized loops, missing pagination       |
-| `migration-planner`    | claude-opus-4-7   | medium | plan    | DB migrations, breaking API changes, version bumps           |
+| Agent                  | Model             | Effort | Mode    | Cost | Purpose                                                      |
+| ---------------------- | ----------------- | ------ | ------- | ---- | ------------------------------------------------------------ |
+| `orchestrator`         | claude-sonnet-4-6 | low    | default | Mid  | Routes all tasks to specialists. Never writes code directly. |
+| `code-reviewer`        | claude-sonnet-4-6 | low    | plan    | Mid  | Correctness, security, style, and performance review         |
+| `security-auditor`     | claude-sonnet-4-6 | low    | plan    | Mid  | Secrets, injection vectors, CVEs, auth gaps                  |
+| `doc-writer`           | claude-haiku-4-5  | low    | default | Low  | TSDoc, module docs, README sections                          |
+| `test-writer`          | claude-sonnet-4-6 | medium | default | Mid  | Unit and integration test generation                         |
+| `refactor`             | claude-sonnet-4-6 | low    | default | Mid  | Structure, naming, and complexity cleanup                    |
+| `debugger`             | claude-opus-4-7   | high   | default | High | Root cause analysis and fix proposals                        |
+| `code-humanizer`       | claude-sonnet-4-6 | medium | default | Mid  | Naming clarity, readability, complexity reduction            |
+| `dependency-auditor`   | claude-haiku-4-5  | low    | plan    | Low  | Outdated, vulnerable, and abandoned package scanning         |
+| `performance-reviewer` | claude-haiku-4-5  | low    | plan    | Low  | N+1, re-renders, unoptimized loops, missing pagination       |
+| `migration-planner`    | claude-opus-4-7   | medium | plan    | High | DB migrations, breaking API changes, version bumps           |
 
 `plan` mode enforces read-only access at the runtime level independent of the tool list.
 
@@ -133,7 +156,7 @@ request → orchestrator → code-reviewer     ─┐
 @debugger why is this test flaking
 ```
 
-The orchestrator also builds persistent cross-session memory at `.claude/agent-memory/` (gitignored), so it learns codebase patterns and routing preferences over time.
+The orchestrator builds persistent cross-session memory at `.claude/agent-memory/` (gitignored), so it learns codebase patterns and routing preferences over time.
 
 ---
 
@@ -191,6 +214,41 @@ Prevents Claude from writing to files that should never be directly edited:
 | Out-of-project | Any path outside `$CLAUDE_PROJECT_DIR`                                                                           |
 
 Lockfile blocks include the correct package manager command as a hint.
+
+### `guard-agents.sh` (PreToolUse: Agent)
+
+Tracks every agent spawn in a session-scoped counter file under `/tmp/` and enforces two configurable limits:
+
+| Limit        | Default | Env var                   | Applies to                                    |
+| ------------ | ------- | ------------------------- | --------------------------------------------- |
+| Total spawns | 20      | `CLAUDE_MAX_AGENT_SPAWNS` | All agents                                    |
+| Heavy spawns | 4       | `CLAUDE_MAX_HEAVY_SPAWNS` | `debugger`, `migration-planner` (claude-opus) |
+
+**Hard block** when either limit is reached:
+
+```
+BLOCKED: 'debugger' uses claude-opus and has hit the heavy-agent limit (4/4 per session).
+Increase CLAUDE_MAX_HEAVY_SPAWNS to raise the limit, or route this task to a lighter agent.
+```
+
+**Soft warning** at 80% of the total limit (shown as a `systemMessage` in the UI, not fed to Claude):
+
+```
+Cost watch: 16/20 agent spawns used this session (opus: 3/4).
+```
+
+Counters reset automatically when a new session starts (new session ID = new `/tmp/` files).
+
+To raise limits for a specific project, set the env vars in `.claude/settings.local.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_MAX_AGENT_SPAWNS": "40",
+    "CLAUDE_MAX_HEAVY_SPAWNS": "8"
+  }
+}
+```
 
 ### `format.sh` (PostToolUse: Write, Edit, NotebookEdit)
 
@@ -348,6 +406,25 @@ If neither is available, test commands run without a timeout.
 
 ## Customization
 
+### Fill out CLAUDE.md
+
+Open `CLAUDE.md` and replace all `[YOUR NAME OR TEAM]`, `[LANGUAGE / FRAMEWORK / DATABASE]`, and `[CUSTOMIZE]` placeholders. Delete the code style blocks that do not apply to your stack.
+
+### Adjust agent spawn limits
+
+Set env vars in `.claude/settings.local.json` (gitignored by default):
+
+```json
+{
+  "env": {
+    "CLAUDE_MAX_AGENT_SPAWNS": "40",
+    "CLAUDE_MAX_HEAVY_SPAWNS": "8"
+  }
+}
+```
+
+The defaults (20 total, 4 heavy) are intentionally conservative. Raise them for projects where you regularly run complex multi-agent workflows.
+
 ### Add a protected file
 
 Edit `guard-files.sh` and add patterns to the lockfile `case` block or the secret extension `case` block.
@@ -380,7 +457,7 @@ To replace a specialist, delete its `.md` file and add your own with the same `n
 
 ### Adjust model or effort
 
-Edit the `model` and `effort` fields in the agent's frontmatter. Valid effort values: `low`, `medium`, `high`, `xhigh`, `max`. Takes effect on the next session.
+Edit the `model` and `effort` fields in the agent's frontmatter. Valid effort values: `low`, `medium`, `high`, `xhigh`, `max`. Takes effect on the next session. If you add a new Opus-tier agent, add its name to the `HEAVY_AGENTS` array in `guard-agents.sh` so it counts against the heavy limit.
 
 ---
 
