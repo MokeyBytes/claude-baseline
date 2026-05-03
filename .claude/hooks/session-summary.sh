@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop hook — outputs a non-disruptive session summary after Claude finishes.
-# Shows files changed, agent cost estimate, and new TODO/FIXME/HACK markers.
+# Shows files changed, agent tier breakdown, and new TODO/FIXME/HACK markers.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,7 +55,7 @@ if [[ "$FILES_CHANGED" -eq 0 && "$TOTAL_AGENTS" -eq 0 ]]; then
 	exit 0
 fi
 
-# --- Agent summary with cost estimate ---
+# --- Agent tier summary ---
 AGENT_PARTS=()
 [[ "$LOW_COUNT" -gt 0 ]] && AGENT_PARTS+=("${LOW_COUNT} low")
 [[ "$MID_COUNT" -gt 0 ]] && AGENT_PARTS+=("${MID_COUNT} mid")
@@ -64,11 +64,7 @@ AGENT_PARTS=()
 if [[ ${#AGENT_PARTS[@]} -gt 0 ]]; then
 	AGENT_LIST=$(printf '%s, ' "${AGENT_PARTS[@]}")
 	AGENT_LIST="${AGENT_LIST%, }"
-	COST=$(python3 -c "
-low, mid, high = $LOW_COUNT, $MID_COUNT, $HIGH_COUNT
-print(f'{low * 0.01 + mid * 0.05 + high * 0.50:.2f}')
-" 2>/dev/null || echo "?")
-	AGENT_STR="agents: ${AGENT_LIST} (~\$${COST} est.)"
+	AGENT_STR="agents: ${AGENT_LIST} (total: ${TOTAL_AGENTS})"
 else
 	AGENT_STR="no agents"
 fi
