@@ -1,3 +1,4 @@
 .claude/logs/*
 !.claude/logs/.gitkeep
 .claude/agent-memory/
+.claude/settings.local.json
