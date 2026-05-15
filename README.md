@@ -510,3 +510,14 @@ Edit the `model` and `effort` fields in the agent's frontmatter. Valid effort va
 ## License
 
 MIT
+
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=MokeyBytes%2Fclaude-baseline&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=MokeyBytes/claude-baseline&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=MokeyBytes/claude-baseline&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=MokeyBytes/claude-baseline&type=date&legend=top-left" />
+ </picture>
+</a>
